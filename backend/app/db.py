@@ -1,14 +1,13 @@
-# File: backend/app/db.py
-
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Load environment variables from the .env file in the project root
-# The path is relative to where this script is eventually run from (the 'backend' directory)
-load_dotenv(dotenv_path="../.env")
+env_path = Path(__file__).resolve().parent.parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -21,6 +20,5 @@ engine = create_engine(DATABASE_URL)
 # Each instance of the SessionLocal class will be a new database session.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base class for our SQLAlchemy models.
-# Our model classes (like the User class) will inherit from this.
+# Base class for our SQLAlchemy models
 Base = declarative_base()

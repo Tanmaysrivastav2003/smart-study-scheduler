@@ -1,52 +1,66 @@
-# File: backend/alembic/env.py
-
 import os
+import sys
 from logging.config import fileConfig
 
-from dotenv import load_dotenv
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
 
-# ----------------- App-specific setup -----------------
-# Import your Base model from your application
-from app.db import Base
-# ----------------------------------------------------
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# --- 1. Path Configuration: Make the 'app' module importable ---
+# Get the directory of the current file (env.py)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Get the path to the 'backend' directory (one level up from 'alembic')
+backend_dir = os.path.join(current_dir, '..')
+# Add the 'backend' directory to the Python path
+sys.path.insert(0, backend_dir)
+
+
+# --- 2. Load the application's models and Base ---
+# Now that the path is set, we can import from 'app'
+from app.db import Base
+from app import models  # This ensures Alembic sees all your models
+
+
+# --- 3. Load Environment Variables from .env file ---
+from dotenv import load_dotenv
+
+# Construct the path to the .env file at the project root
+project_root = os.path.join(backend_dir, '..')
+dotenv_path = os.path.join(project_root, '.env')
+load_dotenv(dotenv_path)
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set or .env file is not found.")
+
+
+# --- 4. Alembic Configuration ---
 config = context.config
 
-# --- START: Load environment variables and set the database URL ---
-# Load the .env file from the project root.
-# This makes sure the DATABASE_URL is available.
-dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
-if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path)
+# Set the database URL for Alembic from our loaded environment variable
+config.set_main_option('sqlalchemy.url', DATABASE_URL)
 
-db_url = os.getenv("DATABASE_URL")
-if not db_url:
-    raise ValueError("DATABASE_URL environment variable not set or .env file not found")
-
-# Set the sqlalchemy.url in the Alembic config object. This is the crucial part
-# that makes the connection work.
-config.set_main_option("sqlalchemy.url", db_url)
-# --- END: Load environment variables and set the database URL ---
-
-
-# Interpret the config file for Python logging.
-# This line needs to be called once and only once.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
+# Set the target metadata for autogenerate
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
+    """Run migrations in 'offline' mode.
+
+    This configures the context with just a URL
+    and not an Engine, though an Engine is acceptable
+    here as well.  By skipping the Engine creation
+    we don't even need a DBAPI to be available.
+
+    Calls to context.execute() here emit the given string to the
+    script output.
+
+    """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -60,9 +74,12 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
-    # This is the line that was failing before. Now it will find the URL
-    # in the config object.
+    """Run migrations in 'online' mode.
+
+    In this scenario we need to create an Engine
+    and associate a connection with the context.
+
+    """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
