@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 from . import models, schemas
+from sqlalchemy import func
+from datetime import datetime, timedelta
 
 def create_user(db: Session, user: schemas.UserCreate) -> models.User:
     """
@@ -18,3 +20,65 @@ def create_user(db: Session, user: schemas.UserCreate) -> models.User:
     db.refresh(db_user)
     
     return db_user
+def create_study_session(db: Session, session: schemas.StudySessionCreate, user_id: int) -> models.StudySession:
+    """
+    Creates a new study session for a user.
+    """
+    # Calculate duration on the backend to ensure consistency
+    duration = session.end_time - session.start_time
+    duration_minutes = int(duration.total_seconds() / 60)
+
+    db_session = models.StudySession(
+        start_time=session.start_time,
+        end_time=session.end_time,
+        duration_minutes=duration_minutes,
+        focus_score=session.focus_score,
+        task_id=session.task_id,
+        user_id=user_id
+    )
+    db.add(db_session)
+    db.commit()
+    db.refresh(db_session)
+    return db_session
+def get_dashboard_stats(db: Session, user_id: int) -> schemas.DashboardStats:
+    """
+    Aggregates study session data for the last 7 days for a user.
+    """
+    # Calculate the start of the week (7 days ago)
+    seven_days_ago = datetime.now() - timedelta(days=7)
+
+    # Query for all sessions in the last 7 days
+    sessions = db.query(models.StudySession).filter(
+        models.StudySession.user_id == user_id,
+        models.StudySession.start_time >= seven_days_ago
+    ).all()
+
+    # Calculate total weekly hours
+    total_minutes = sum(s.duration_minutes for s in sessions)
+    total_hours = round(total_minutes / 60, 2)
+
+    # Calculate daily heatmap
+    heatmap = {
+        "Monday": 0.0, "Tuesday": 0.0, "Wednesday": 0.0, "Thursday": 0.0,
+        "Friday": 0.0, "Saturday": 0.0, "Sunday": 0.0
+    }
+    for s in sessions:
+        day_name = s.start_time.strftime('%A')
+        heatmap[day_name] += round(s.duration_minutes / 60, 2)
+
+    return schemas.DashboardStats(
+        total_study_hours_weekly=total_hours,
+        daily_study_heatmap=heatmap
+    )
+def get_task(db: Session, task_id: int) -> models.Task | None:
+    """
+    Retrieves a single task by its ID.
+    """
+    return db.query(models.Task).filter(models.Task.id == task_id).first()
+
+def create_task(db: Session, task: schemas.TaskCreate, user_id: int) -> models.Task:
+    db_task = models.Task(**task.model_dump(), user_id=user_id)
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    return db_task

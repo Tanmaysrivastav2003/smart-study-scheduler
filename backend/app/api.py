@@ -1,9 +1,12 @@
 from fastapi import APIRouter
-from .routes import health, users
+# Import dashboard
+from .routes import health, users, schedule, study_sessions, dashboard, tasks
 
-# This is the main router that will aggregate all other routers.
 router = APIRouter()
 
-# Include specific routers here. Tags are used to group endpoints in the docs.
 router.include_router(health.router, tags=["Health"])
-router.include_router(users.router, tags=["Users"]) # <-- Include the users router
+router.include_router(users.router, tags=["Users"])
+router.include_router(schedule.router, tags=["Schedule"])
+router.include_router(study_sessions.router, tags=["Study Sessions"])
+router.include_router(dashboard.router, tags=["Dashboard"]) # <-- Include router
+router.include_router(tasks.router, tags=["Tasks"])
