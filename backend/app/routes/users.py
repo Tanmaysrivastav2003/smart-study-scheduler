@@ -1,29 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 
-from app import schemas, models
-from app.db import get_db
 
-router = APIRouter(
-    prefix="/users",
-    tags=["Users"]
-)
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=schemas.UserOut)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+from .. import crud, schemas  # <-- TWO dots mean "go up one directory"
+from ..db import get_db
+
+router = APIRouter()
+
+@router.post("/users", response_model=schemas.UserOut)
+def create_new_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     """
     Create a new user.
     """
-    new_user = models.User(email=user.email, name=user.name)
-    db.add(new_user)
-    try:
-        db.commit()
-        db.refresh(new_user)
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"User with email '{user.email}' already exists."
-        )
-    return new_user
+    # First, check if a user with this email already exists
+    # (We will implement get_user_by_email in the crud file later, for now we skip)
+    
+    # Create the user
+    db_user = crud.create_user(db=db, user=user)
+    return db_user

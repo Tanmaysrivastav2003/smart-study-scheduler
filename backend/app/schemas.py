@@ -1,22 +1,21 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from datetime import datetime
+from typing import Optional
 
-# --- User Schemas ---
-
-# Properties required when creating a user.
-class UserCreate(BaseModel):
+# Shared properties
+class UserBase(BaseModel):
     email: EmailStr
-    name: str | None = None
+    name: Optional[str] = None
 
-# Properties to return to the client.
-# We don't want to return the password, for example.
-class UserOut(BaseModel):
+# Properties to receive via API on creation
+class UserCreate(UserBase):
+    pass # In this case, it's the same as UserBase
+
+# Properties to return to client
+class UserOut(UserBase):
     id: int
-    email: EmailStr
-    name: str | None
     created_at: datetime
 
-    # This tells Pydantic to read the data even if it is not a dict,
+    # This tells the Pydantic model to read the data even if it is not a dict,
     # but an ORM model (or any other arbitrary object with attributes).
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
